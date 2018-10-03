@@ -1,0 +1,7 @@
+<OGRVRTDataSource>
+<OGRVRTLayer name="ST2017">
+<SrcDataSource>/Users/kylechezik/sfu/River_Network_Temperature_Output/predictors/climate_csv/ST2017.csv</SrcDataSource>
+<GeometryType>wkbPoint</GeometryType>
+<GeometryField encoding="PointFromColumns" x="Longitude" y="Latitude" z="Tmin_wt"/>
+</OGRVRTLayer>
+</OGRVRTDataSource>
