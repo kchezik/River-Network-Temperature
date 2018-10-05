@@ -137,6 +137,7 @@ cl <- makeCluster(4)
 registerDoParallel(cl)
 
 rtrn = foreach(i=1:4, .packages = c('tidyverse','SSN','boot'), .errorhandling = "remove") %dopar% {
+	
 	#Sample a unique row and sampe from each coefs. posterior.
 	row = sample(x = c(1:1000), size = 1)
 	obs_fit = obs_org %>% group_by(newID, year_no) %>% 
@@ -193,21 +194,31 @@ rtrn = foreach(i=1:4, .packages = c('tidyverse','SSN','boot'), .errorhandling = 
 	A_coef = summary(mod_A)
 	
 	#Predict snow and save to matrix.
+	pred_snow <- predict.glmssn(mod_snow, predpointsID = "preds")
+	snow_mat = pred_snow$ssn.object@predpoints@SSNPoints[[1]]@point.data$S
+	snow_coef = summary(mod_snow)
+	
+	#Predict tau and save to matrix.
 	pred_tau <- predict.glmssn(mod_tau, predpointsID = "preds")
 	tau_mat = pred_tau$ssn.object@predpoints@SSNPoints[[1]]@point.data$tau
 	tau_coef = summary(mod_tau)
 	
+	#Predict tao and save to matrix.
 	pred_tao <- predict.glmssn(mod_tao, predpointsID = "preds")
 	tao_mat = pred_tao$ssn.object@predpoints@SSNPoints[[1]]@point.data$tao
 	tao_coef = summary(mod_tao)
 	
-	write_rds(list(estimates = data.frame(alpha = alpha_mat, A = A_mat, tau = tau_mat, tao = tao_mat),
+	write_rds(list(estimates = data.frame(alpha = alpha_mat, A = A_mat, snow = snow_mat,
+																				tau = tau_mat, tao = tao_mat),
 								 alpha = alpha_coef$fixed.effects.estimates, A = A_coef$fixed.effects.estimates,
+								 snow = snow_coef$fixed.effects.estimates,
 								 tau = tau_coef$fixed.effects.estimates, tao = tao_coef$fixed.effects.estimates),
 						path = paste("./Water_Temperature/Data/iterations/",as.character(i),".rds",sep = ""))
 	
-	list(estimates = data.frame(alpha = alpha_mat, A = A_mat, tau = tau_mat, tao = tao_mat),
+	list(estimates = data.frame(alpha = alpha_mat, A = A_mat, snow = snow_mat,
+															tau = tau_mat, tao = tao_mat),
 			 alpha = alpha_coef$fixed.effects.estimates, A = A_coef$fixed.effects.estimates,
+			 snow = snow_coef$fixed.effects.estimates,
 			 tau = tau_coef$fixed.effects.estimates, tao = tao_coef$fixed.effects.estimates)
 }
 write_rds(rtrn, "./Water_Temperature/Data/network_4.rds")
@@ -227,6 +238,7 @@ plot( na.omit( getSSNdata.frame(network)[, "tao"]),
 
 plot(network, "A", lwdLineCol = "afvArea", lwdLineEx = 10, lineCol = "black", pch = 19, xlab = "x-coordinate (m)", ylab = "y-coordinate (m)", asp   =   1)
 
+#The notable interaction of lake and elevation may be explained by the fact that higher elevations have steeper slopes and fewer lakes and therefore a negative relationship with temperature. This is supported by Lisi:2015.
 
 
 # Thermal Stress Probability Accumulation Analysis
@@ -261,11 +273,11 @@ samp_dates = function(single=F){
 cl <- makeCluster(7)
 registerDoParallel(cl)
 #Sample an early, mid and late summer migration date and calculate temperatures.
-probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun = function(x){
+probs = plyr::dlply(.data = samp_dates(single=F), .variables = "migrate", .fun = function(x){
 	
 	#----->Data<-----#
 	#SSN Model fits
-	fits = read_rds("./Water_Temperature/Data/network_4.rds")
+	fits = read_rds("./Water_Temperature/Data/network_250.rds")
 	#Network binary and rid IDs.
 	net1 = read_delim("./Water_Temperature/lsn/lsn.ssn/netID1.dat", delim = ",",
 										col_names = c("rid","binaryID"), skip = 1, col_types = cols("i","c"))
@@ -313,28 +325,89 @@ probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun =
 			dwn_rid = dwnStrm(net, binary)
 			#Probability of >18ºC experience
 			pts = tmp[which(preds$year==.$year & preds$upDist<=.$upDist & preds$rid %in% dwn_rid),]
-			data.frame(G19 = sum(pts>19)/(length(pts)*nrow(pts)),
-								 G20 = sum(pts>20)/(length(pts)*nrow(pts)),
-								 G21 = sum(pts>21)/(length(pts)*nrow(pts)),
-								 G22 = sum(pts>22)/(length(pts)*nrow(pts)),
-								 G23 = sum(pts>23)/(length(pts)*nrow(pts)),
-								 G24 = sum(pts>24)/(length(pts)*nrow(pts)))
+			G19_sum = sum(pts>19);G20_sum = sum(pts>20);G21_sum = sum(pts>21);G22_sum = sum(pts>22)
+			G23_sum = sum(pts>23);G24_sum = sum(pts>24); denom = length(pts)*nrow(pts)
+			data.frame(Sum19 = G19_sum, G19 = G19_sum/denom,
+								 Sum20 = G20_sum, G20 = G20_sum/denom,
+								 Sum21 = G21_sum, G21 = G21_sum/denom,
+								 Sum22 = G22_sum, G22 = G22_sum/denom,
+								 Sum23 = G23_sum, G23 = G23_sum/denom,
+								 Sum24 = G24_sum, G24 = G24_sum/denom)
 		})
-	}, .parallel = T, .paropts = list(.packages = c('tidyverse','lubridate'),
+	}, .parallel = F, .paropts = list(.packages = c('tidyverse','lubridate'),
 																		.export = c("fits","preds","net1","net2",
 																								"swim_date","temperature",
 																								"samp_dates","dwnStrm")))
 })
-write_rds(preds, "./Water_Temperature/Data/preds_flatD.rds")
+write_rds(probs, "./Water_Temperature/Data/probs_flatD.rds")
 stopCluster(cl)
 
 #The approximate distance from the Albion test fishery (Parken et al. 2008) to the Thompson as Kamloops is 447km. Adding this initial distance to the distance upstream from Kamloops give the total travel distance. We can then divide by an approximate travel rate of 36km/day (Salinger and Anderson 2006).
 
-
+probs = read_rds("./Water_Temperature/Data/probs_flatD.rds")
 #Summarize by migration group and place in shapefile for mapping.
-comb = plyr::llply(probs, .fun=function(x){
-	tmp = plyr::ldply(x, .fun=function(y){
-		data.frame(locID = y$locID, probs = y$G19)
+lim_summary = function(probs, cols, prefix){
+	plyr::llply(probs, .fun=function(x){
+		tmp = plyr::ldply(x, .fun=function(y){
+			data.frame(locID = y$locID, cum = y[[cols[1]]], probs = y[[cols[2]]], year = preds$year)
+		})
+		#Get the mean by year accross days.
+		mean_c = tmp %>% group_by(year,locID) %>% 
+			summarise(mean_p = mean(probs), mean_c = round(mean(cum),0))
+		#Get the day with the greatest average value.
+		max_p = tmp %>% group_by(year,start) %>% summarise(mean_p = mean(probs)) %>% 
+			filter(mean_p == max(mean_p)) %>% rename(start_p = start) %>% 
+			inner_join(.,tmp,by = c("year","start_p"="start")) %>% select(-mean_p, -cum)
+		max_c = tmp %>% group_by(year,start) %>% summarise(mean_c = mean(cum)) %>% 
+			filter(mean_c == max(mean_c))  %>% rename(start_c = start) %>% 
+			inner_join(.,tmp,by = c("year","start_c"="start")) %>% select(-mean_c, -probs)
+		max = left_join(max_p, max_c) 
+		#return summarized data by migration.
+		final = max %>% left_join(., mean_c, by = c("year","locID")) %>% select(3,1,7,8,2,4,5,6)
+		names(final)[c(3:8)] = paste(prefix,names(final)[c(3:8)],sep="_")
+		return(final)
 	})
-	tmp %>% spread(key = start, value = probs)
-})
+}
+#Summarize by threshold
+G19 = lim_summary(probs, c(2,3), "G19")
+G20 = lim_summary(probs, c(4,5), "G20")
+G21 = lim_summary(probs, c(6,7), "G21")
+G22 = lim_summary(probs, c(8,9), "G22")
+G23 = lim_summary(probs, c(10,11), "G23")
+G24 = lim_summary(probs, c(12,13), "G24")
+
+#Save shape files
+
+shp_save = function(pred_df, period, yr){
+	#Bind together the thresholds
+	p_riod = pred_df %>% select(-c(1:7)) %>% 
+		left_join(.,G19[[period]]) %>% left_join(.,G20[[period]]) %>%
+		left_join(.,G21[[period]]) %>% left_join(.,G22[[period]]) %>%
+		left_join(.,G23[[period]]) %>% left_join(.,G24[[period]])
+	#Filter out by year
+	p_riod = data.frame(network@predpoints@SSNPoints[[1]]@point.coords) %>% 
+		bind_cols(., p_riod) %>% filter(year == yr)
+	#Make spatial object
+	p_riod = SpatialPointsDataFrame(coords = p_riod[,c("coords.x1","coords.x2")], 
+												 data = p_riod[,c(3:46)], proj4string = network@proj4string)
+	#Write shapefile.
+	lyr = paste(period, as.character(yr), sep = "_")
+	writeOGR(p_riod, dsn = "./Water_Temperature/lsn/risk_probs/", layer = lyr,
+					 overwrite_layer = T, driver = "ESRI Shapefile")
+}
+
+#Early
+shp_save(preds, "early", 2014)
+shp_save(preds, "early", 2015)
+shp_save(preds, "early", 2016)
+shp_save(preds, "early", 2017)
+#Mid
+shp_save(preds, "mid", 2014)
+shp_save(preds, "mid", 2015)
+shp_save(preds, "mid", 2016)
+shp_save(preds, "mid", 2017)
+#Late
+shp_save(preds, "late", 2014)
+shp_save(preds, "late", 2015)
+shp_save(preds, "late", 2016)
+shp_save(preds, "late", 2017)
