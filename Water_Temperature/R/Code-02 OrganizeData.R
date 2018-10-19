@@ -74,19 +74,35 @@ cf = extract(mod)
 #Temperature posteriors
 rtrn = full %>% group_by(site, year_no, day) %>% do({
 	temp = (cf$alpha[,.$newID,.$year_no] + cf$A[,.$newID,.$year_no]*cos(2*pi*.$doy/.$n + cf$tau[,.$newID]*pi)) + cf$S[,.$newID,.$year_no]*cos(2*pi*.$doy/(.$n/2) + cf$tao[,.$newID]*pi)
+	upper = median(temp+1.97*cf$sigma[,.$newID])
 	Q = quantile(temp, probs = c(.025,.1,.5,.9,.975))
-	data.frame(t(Q))
+	data.frame(t(Q),upper)
 })
 #Correct names
-names(rtrn) = c("site","year_no","day","Q2.5","Q1","Q5","Q9","Q97")
+names(rtrn) = c("site","year_no","day","Q2.5","Q1","Q5","Q9","Q97","sigma")
 rtrn = left_join(full,rtrn)
 
+label = data.frame(newID = c(1,61,72,100),
+									 label = c("NT Headwaters",
+									 					"Bridge Creek (West NT)",
+									 					"Barrier River (South NT)",
+									 					"Shuswap River (ST)"))
+
 #Determine which sites and years should be omited from SSN analysis.
-rtrn %>% filter(newID %in% c(26,76,84,86,92)) %>% 
-ggplot(., aes(day, temperature, group = year_no)) + geom_point(size = 0.5) + 
+p = rtrn %>% filter(newID %in% c(1,61,72,100)) %>% 
+	left_join(., label) %>%
+	ggplot(., aes(day, temperature, group = year_no)) + geom_point(size = 0.5) + 
 	#geom_point(aes(day, Q5), color = "red") +
-	geom_ribbon(aes(x = day, ymin = Q2.5, ymax = Q97), fill = "red", alpha = .7) + 
-	facet_wrap(~newID)
+	geom_ribbon(aes(x = day, ymin = Q2.5, ymax = Q97), fill = "#F26419") + 
+	geom_line(aes(x=day,y=sigma),color="#F6AE2D", linetype = 2) +
+	facet_wrap(~label)+
+	ggthemes::theme_tufte() +
+	scale_x_date(date_breaks = "6 month", date_labels = "%y-%m") + 
+	labs(x = "Year-Month", y = expression("Temperature ("*degree*"C)"))+
+	theme(#strip.text = element_blank(),
+				axis.text = element_text(size = 8))
+ggsave(filename = "./Water_Temperature/images/temporal_fit.png", plot = p,
+			 device = "png", width = 7.5, height = 3.5, units = "in", dpi = 500)
 
 #Manually list sites and years to be omitted.
 omit = data.frame(site = c(4,5,5,6,10,11,12,13,15,16,17,17,19,19,20,20,21,21,22,22,23,23,
@@ -210,13 +226,14 @@ write_csv(final, "~/sfu/River_Network_Temperature_Output/predictors/csv_stats/fu
 
 
 #Add new site for each year to prediction dataset.
-preds = readOGR("./Water_Temperature/lsn/lsn.ssn/", layer = "preds")
+#preds = readOGR("./Water_Temperature/lsn/lsn.ssn/", layer = "preds")
+preds = readOGR("./Water_Temperature/lsn/preds/", layer = "preds_rid")
 df = preds@data %>% mutate(year = 2014)
 df2 = df; df2$year = 2015
 df3 = df; df3$year = 2016
 df4 = df; df4$year = 2017
 dat = bind_rows(df,df2,df3,df4)
-
-sp = SpatialPointsDataFrame(coords = dat[,c("NEAR_X","NEAR_Y")], data = dat, 
+coords = data.frame(UTM_E = rep(preds@coords[,1],4), UTM_N = rep(preds@coords[,2],4))
+sp = SpatialPointsDataFrame(coords = coords, data = dat, 
 														proj4string = preds@proj4string)
-writeOGR(obj = sp, dsn = "./Water_Temperature/lsn/preds/", layer = "preds", driver = "ESRI Shapefile")
+writeOGR(obj = sp, dsn = "./Water_Temperature/lsn/preds/", layer = "preds_rid", driver = "ESRI Shapefile", overwrite_layer = T)

@@ -1,14 +1,12 @@
 library(tidyverse); library(SSN); library(rgdal); library(boot); library(lubridate);
 library(foreach); library(doParallel) #Activate Libraries
 #Read in the .ssn network data.
-network = importSSN(filepath = "~/sfuvault/River-Network-Temperature/Water_Temperature/lsn/lsn.ssn/",
-										predpts = "preds", o.write = F) 
+network = importSSN(filepath = "~/sfuvault/River-Network-Temperature/Water_Temperature/lsn/newLSN.ssn/", predpts = "preds", o.write = F) 
 #Gather dataframes from observations and predictions for manipulation.
 obs = getSSNdata.frame(network, Name = "Obs"); names(obs)[4] = "year"
-preds = getSSNdata.frame(network, Name = "preds"); names(preds)[15] = "year"
-#Manual correction for points within lakes and no associated costRCA. For improvement, we could/should eliminate prediction sites that coincide with lakes. This would account for thermal refuge offered by the lake.
-preds[preds$rid == 1645,"rid"] = 1769
-preds[preds$rid == 3139,"rid"] = 3284
+preds = getSSNdata.frame(network, Name = "preds"); names(preds)[4] = "year"
+#For improvement, we could/should eliminate prediction sites that coincide with lakes. This would account for thermal refuge offered by the lake.
+
 #Gather stream network dataframe and correct column names for consistancy in subsequent analysis.
 netDat = network@data; names(netDat)[c(5,36,23)] = c("rca_h2o","El_km2","rca_km2")
 
@@ -25,8 +23,9 @@ Climate_Year = function(netID,rid,year,c_var){
 	netDat[(netDat$netID == unique(netID) & netDat$rid == unique(rid)),col]
 }
 #Calculate mean annual air temperature and range for the contributing watershed for each site and year.
-obs_org = obs %>% group_by(netID,rid,year) %>% mutate(air_mean = Climate_Year(netID,rid,year,"Mu"),
-																						 air_A = Climate_Year(netID,rid,year,"A"))
+obs_org = obs %>% group_by(netID,rid,year) %>%
+	mutate(air_mean = Climate_Year(netID,rid,year,"Mu"),
+				 air_A = Climate_Year(netID,rid,year,"A"))
 preds_org = preds %>% group_by(netID,rid,year) %>% 
 	mutate(air_mean = Climate_Year(netID,rid,year,"Mu"),
 				 air_A = Climate_Year(netID,rid,year,"A"))
@@ -41,6 +40,7 @@ WA = function(netID, rid, ratio, var, perc = T){
 	rca = U_RCA[grep("km",U_RCA)]
 	#Calculate
 	area = edge[,"rca_h2o"] + (1-unique(ratio))*edge[,"rca_km2"]
+	if(area == 0) area = 0.001
 	effect = edge[,h2o] + (1-unique(ratio))*edge[,rca]
 	#Return Percentage
 	if(perc){
@@ -66,49 +66,64 @@ RCA = function(netID, rid, var, cost = T, perc = F, WA = F){
 		else effect = edge[,h2o]
 	}
 	if(WA == T){
-		effect = (edge[,rca]*edge[,"rca_km2"] + edge[,h2o]*edge[,"rca_h2o"])/
-			(edge[,"rca_km2"]+edge[,"rca_h2o"])
+		num = (edge[,rca]*edge[,"rca_km2"] + edge[,h2o]*edge[,"rca_h2o"])
+		denom = (edge[,"rca_km2"]+edge[,"rca_h2o"])
+		if(denom == 0) denom = 0.001
+		effect = num/denom
 	}
 	return(effect)
 }
+
 #Summarise the watershed attributes contributing to observation sites.
 obs_org = obs_org %>% group_by(netID,rid,ratio) %>% 
 	mutate(ca_h2o = WA(netID, rid, ratio, var = "rca", perc = F),
 				 ele_h2o = RCA(netID, rid, var = "El", cost = F, WA = T),
-				 lake_h2o = WA(netID, rid, ratio, var = "lake"),
-				 glacier_h2o = WA(netID, rid, ratio, var = "glacier"),
-				 logcum_h2o = WA(netID, rid, ratio, var = "log_cu|log\\w{5}cu"),
-				 firecum_h2o = WA(netID, rid, ratio, var = "fire_cu|fire\\w{5}c")
-				 ) %>% ungroup() %>% 
-	mutate(site_fac = as.factor(newID),
-				 year_fac = as.factor(year),
-				 scl_air_mn = (air_mean-mean(air_mean))/sd(air_mean),
-				 scl_air_A = (air_A-mean(air_A))/sd(air_A),
-				 scl_ca = (log(ca_h2o)-mean(log(ca_h2o)))/sd(log(ca_h2o)),
-				 scl_ele = (ele_h2o-mean(ele_h2o))/sd(ele_h2o),
-				 lgt_lake = logit(lake_h2o),
-				 lgt_glacier = logit(glacier_h2o),
-				 lgt_logcum = logit(logcum_h2o),
-				 lgt_firecum = logit(firecum_h2o))
+				 lake_h2o = WA(netID, rid, ratio, var = "lake", perc = T),
+				 glacier_h2o = WA(netID, rid, ratio, var = "glacier", perc = T),
+				 logcum_h2o = WA(netID, rid, ratio, var = "log_cu|log\\w{5}cu", perc = T),
+				 firecum_h2o = WA(netID, rid, ratio, var = "fire_cu|fire\\w{5}c", perc = T))
 #Summarise the watershed attributes contributing to prediction sites.
 preds_org = preds_org %>% group_by(netID,rid,ratio) %>% 
 	mutate(ca_h2o = WA(netID, rid, ratio, var = "rca", perc = F),
 				 ele_h2o = RCA(netID, rid, var = "El", cost = F, WA = T),
-				 lake_h2o = WA(netID, rid, ratio, var = "lake"),
-				 glacier_h2o = WA(netID, rid, ratio, var = "glacier"),
-				 logcum_h2o = WA(netID, rid, ratio, var = "log_cu|log\\w{5}cu"),
-				 firecum_h2o = WA(netID, rid, ratio, var = "fire_cu|fire\\w{5}c")
-				 ) %>% ungroup() %>% 
-	mutate(site_fac = locID,
+				 lake_h2o = WA(netID, rid, ratio, var = "lake", perc = T),
+				 glacier_h2o = WA(netID, rid, ratio, var = "glacier", perc = T),
+				 logcum_h2o = WA(netID, rid, ratio, var = "log_cu|log\\w{5}cu", perc = T),
+				 firecum_h2o = WA(netID, rid, ratio, var = "fire_cu|fire\\w{5}c", perc = T))
+
+#Get scaling factors across observation and prediction datasets.
+cs = data.frame(vars = names(obs_org)[17:24]) %>% group_by(vars) %>% do({
+	nums = c(preds_org[,names(preds_org)==.$vars][[1]],obs_org[,names(obs_org)==.$vars][[1]])
+	#Ignore zeros when scaling these log transformed values.
+	if(.$vars %in% c("ca_h2o","firecum_h2o","glacier_h2o","lake_h2o","logcum_h2o")){
+		data.frame(mean = mean(log(nums[nums>0])), sd = sd(log(nums[nums>0])))
+	} else data.frame(mean = mean(nums), sd = sd(nums))
+})
+#Scale and logit transform data.
+obs_org = obs_org %>% ungroup() %>% 
+	mutate(site_fac = as.factor(newID),
 				 year_fac = as.factor(year),
-				 scl_air_mn = (air_mean-mean(air_mean))/sd(air_mean),
-				 scl_air_A = (air_A-mean(air_A))/sd(air_A),
-				 scl_ca = (ca_h2o-mean(ca_h2o))/sd(ca_h2o),
-				 scl_ele = (ele_h2o-mean(ele_h2o))/sd(ele_h2o),
+				 scl_air_mn = (air_mean-cs[cs$vars=="air_mean","mean"][[1]])/cs[cs$vars=="air_mean","sd"][[1]],
+				 scl_air_A = (air_A-cs[cs$vars=="air_A","mean"][[1]])/cs[cs$vars=="air_A","sd"][[1]],
+				 scl_ca = (log(ca_h2o+0.001)-cs[cs$vars=="ca_h2o","mean"][[1]])/cs[cs$vars=="ca_h2o","sd"][[1]],
+				 scl_ele = (ele_h2o-cs[cs$vars=="ele_h2o","mean"][[1]])/cs[cs$vars=="ele_h2o","sd"][[1]],
 				 lgt_lake = logit(lake_h2o),
 				 lgt_glacier = logit(glacier_h2o),
 				 lgt_logcum = logit(logcum_h2o),
 				 lgt_firecum = logit(firecum_h2o))
+
+preds_org = preds_org %>% ungroup() %>% 
+	mutate(site_fac = as.factor(UID),
+				 year_fac = as.factor(year),
+				 scl_air_mn = (air_mean-cs[cs$vars=="air_mean","mean"][[1]])/cs[cs$vars=="air_mean","sd"][[1]],
+				 scl_air_A = (air_A-cs[cs$vars=="air_A","mean"][[1]])/cs[cs$vars=="air_A","sd"][[1]],
+				 scl_ca = (log(ca_h2o+0.001)-cs[cs$vars=="ca_h2o","mean"][[1]])/cs[cs$vars=="ca_h2o","sd"][[1]],
+				 scl_ele = (ele_h2o-cs[cs$vars=="ele_h2o","mean"][[1]])/cs[cs$vars=="ele_h2o","sd"][[1]],
+				 lgt_lake = logit(lake_h2o),
+				 lgt_glacier = logit(glacier_h2o),
+				 lgt_logcum = logit(logcum_h2o),
+				 lgt_firecum = logit(firecum_h2o))
+
 #Put prediction data back into the network.
 	#Must make sure the returned dataframe is not a tibble. 
 	#Also, make sure the original rownames are present.
@@ -129,15 +144,17 @@ cf_samp = function(ID,year,var,row,Y=TRUE){
 	if(Y)	v[row,ID,year]
 	else	v[row,ID]
 }
-	
+
+#Get average estimates of temporal coefficients
+data.frame(alpha_sd = mean(cf$alpha), A_sd = mean(cf$A), S_sd = mean(cf$S),
+					 tau_sd = mean(cf$tau), tao_sd = mean(cf$tao), sigma_sd = mean(cf$sigma))
 
 
 #-------------------------> START Sequence <-------------------------#
-cl <- makeCluster(4)
+cl <- makeCluster(7)
 registerDoParallel(cl)
-
-rtrn = foreach(i=1:4, .packages = c('tidyverse','SSN','boot'), .errorhandling = "remove") %dopar% {
-	
+start_time = Sys.time()
+rtrn = foreach(i=1:250, .packages = c('tidyverse','SSN','boot'), .errorhandling = "remove") %dopar% {
 	#Sample a unique row and sampe from each coefs. posterior.
 	row = sample(x = c(1:1000), size = 1)
 	obs_fit = obs_org %>% group_by(newID, year_no) %>% 
@@ -145,7 +162,15 @@ rtrn = foreach(i=1:4, .packages = c('tidyverse','SSN','boot'), .errorhandling = 
 					 A = cf_samp(newID, year_no, "A", row),
 					 S = cf_samp(newID, year_no, "S", row),
 					 tau = cf_samp(newID, year_no, "tau", row, Y=F),
-					 tao = cf_samp(newID, year_no, "tao", row, Y=F))
+					 tao = cf_samp(newID, year_no, "tao", row, Y=F),
+					 sigma = cf_samp(newID, year_no, "sigma", row, Y=F))
+	#Standardize response variables
+	obs_fit$std_alpha = log(obs_fit$alpha)/sd(log(obs_fit$alpha))
+	obs_fit$std_A = log(obs_fit$A)/sd(log(obs_fit$A))
+	obs_fit$std_S = obs_fit$S/sd(obs_fit$S)
+	obs_fit$std_tau = obs_fit$tau/sd(obs_fit$tau)
+	obs_fit$std_tao = obs_fit$tao/sd(obs_fit$tao)
+	obs_fit$std_sigma = obs_fit$sigma/sd(obs_fit$sigma)
 	
 	#Must make sure the returned dataframe is not a tibble.
 	obs_fit = data.frame(obs_fit)
@@ -154,91 +179,155 @@ rtrn = foreach(i=1:4, .packages = c('tidyverse','SSN','boot'), .errorhandling = 
 	#Models
 	
 	#Alpha
-	#Colder places have been logged less between 1985-2010 than warmer places. Easier to log low down in the watershed? Is the negative effect of logging due to the temporal lag? Maybe, logged places during this time period are now quite forested and 'unforested' places accoring to this dataset have since been logged and are therefore warmer.
+
+		#Colder places have been logged less between 1985-2010 than warmer places. Easier to log low down in the watershed? Is the negative effect of logging due to the temporal lag? Maybe, logged places during this time period have since re-grown and are now quite forested leaving 'unforested' places likely to have been more recently logged. After accounting for air and lake effects, does this temporal mismatch in the data result in a negative relationship? If so, maybe this explains the postive effect of glaciers which are typically high up in the watershed where logging may have occurred more recently such that lower logging and higher glaciers are associated with a small warming trend in the water.
 	
-	mod_alpha = glmssn(formula = alpha~scl_air_mn+scl_air_A+
-										 	lgt_firecum*scl_ca+lgt_glacier*scl_ca+lgt_logcum+
-										 	lgt_lake*scl_ele,
+		#The notable interaction of lake and elevation may be explained by the fact that higher elevations have steeper slopes and fewer lakes and therefore a negative relationship with temperature. This is supported by Lisi:2015.
+	mod_alpha = glmssn(formula = std_alpha~scl_air_mn+scl_air_A+
+												 	lgt_lake*scl_ele+lgt_firecum,
 										 ssn.object = network, EstMeth = "REML", family = "Gaussian", 
 										 CorModels = c("site_fac","year_fac","Exponential.tailup"), 
 										 addfunccol = "afvArea")
 	#Amplitude
-	mod_A = glmssn(formula = A~scl_air_mn+scl_air_A+lgt_glacier+scl_ca+lgt_lake,
+	mod_A = glmssn(formula = std_A~scl_air_mn+scl_air_A+lgt_glacier+scl_ca+lgt_lake,
 								 ssn.object = network, EstMeth = "REML", family = "Gaussian", 
-								 CorModels = c("year_fac","Exponential.tailup"), 
+								 CorModels = c("site_fac","year_fac","Exponential.tailup"), 
 								 addfunccol = "afvArea")
 	#Snow
-	mod_snow = glmssn(formula = S~scl_air_mn+scl_ele+lgt_glacier,
+	mod_snow = glmssn(formula = std_S~scl_air_mn+scl_ele+lgt_glacier,
 										ssn.object = network, EstMeth = "REML", family = "Gaussian", 
-										CorModels = c("year_fac","Exponential.tailup"), 
+										CorModels = c("site_fac","year_fac","Exponential.tailup"), 
 										addfunccol = "afvArea")
 	#Annual tau
-	mod_tau = glmssn(formula = tau~scl_ele,
+	mod_tau = glmssn(formula = std_tau~scl_ele,
 									 ssn.object = network, EstMeth = "REML", family = "Gaussian", 
-									 CorModels = c("year_fac","Exponential.tailup"), 
+									 CorModels = c("site_fac","year_fac","Exponential.tailup"), 
 									 addfunccol = "afvArea")
 	#Season tao
-	mod_tao = glmssn(formula = tao~ele_h2o,
+	mod_tao = glmssn(formula = std_tao~scl_ele,
 									 ssn.object = network, EstMeth = "REML", family = "Gaussian", 
-									 CorModels = c("year_fac","Exponential.tailup"), 
+									 CorModels = c("site_fac","year_fac","Exponential.tailup"), 
+									 addfunccol = "afvArea")
+	#Variance
+	mod_sigma = glmssn(formula = std_sigma~scl_ele,
+									 ssn.object = network, EstMeth = "REML", family = "Gaussian", 
+									 CorModels = c("site_fac","year_fac","Exponential.tailup"), 
 									 addfunccol = "afvArea")
 	
 	#Predict alpha and save to matrix.
 	pred_alpha <- predict.glmssn(mod_alpha, predpointsID = "preds")
-	alpha_mat = pred_alpha$ssn.object@predpoints@SSNPoints[[1]]@point.data$alpha
+	alpha_mat = pred_alpha$ssn.object@predpoints@SSNPoints[[1]]@point.data$std_alpha
+	alpha_mat = exp(alpha_mat*sd(log(obs_fit$alpha)))
 	alpha_coef = summary(mod_alpha)
+	alpha_varcomp = varcomp(mod_alpha)
 	
 	#Predict A and save to matrix.
 	pred_A <- predict.glmssn(mod_A, predpointsID = "preds")
-	A_mat = pred_A$ssn.object@predpoints@SSNPoints[[1]]@point.data$A
+	A_mat = pred_A$ssn.object@predpoints@SSNPoints[[1]]@point.data$std_A
+	A_mat = exp(A_mat*sd(log(obs_fit$A)))
 	A_coef = summary(mod_A)
+	A_varcomp = varcomp(mod_A)
 	
 	#Predict snow and save to matrix.
 	pred_snow <- predict.glmssn(mod_snow, predpointsID = "preds")
-	snow_mat = pred_snow$ssn.object@predpoints@SSNPoints[[1]]@point.data$S
+	snow_mat = pred_snow$ssn.object@predpoints@SSNPoints[[1]]@point.data$std_S
+	snow_mat = snow_mat*sd(obs_fit$S)
 	snow_coef = summary(mod_snow)
+	snow_varcomp = varcomp(mod_snow)
 	
 	#Predict tau and save to matrix.
 	pred_tau <- predict.glmssn(mod_tau, predpointsID = "preds")
-	tau_mat = pred_tau$ssn.object@predpoints@SSNPoints[[1]]@point.data$tau
+	tau_mat = pred_tau$ssn.object@predpoints@SSNPoints[[1]]@point.data$std_tau
+	tau_mat = tau_mat*sd(obs_fit$tau)
 	tau_coef = summary(mod_tau)
+	tau_varcomp = varcomp(mod_tau)
 	
 	#Predict tao and save to matrix.
 	pred_tao <- predict.glmssn(mod_tao, predpointsID = "preds")
-	tao_mat = pred_tao$ssn.object@predpoints@SSNPoints[[1]]@point.data$tao
+	tao_mat = pred_tao$ssn.object@predpoints@SSNPoints[[1]]@point.data$std_tao
+	tao_mat = tao_mat*sd(obs_fit$tao)
 	tao_coef = summary(mod_tao)
+	tao_varcomp = varcomp(mod_tao)
+	
+	#Predict sigma and save to matrix.
+	pred_sigma <- predict.glmssn(mod_sigma, predpointsID = "preds")
+	sigma_mat = pred_sigma$ssn.object@predpoints@SSNPoints[[1]]@point.data$std_sigma
+	sigma_mat = sigma_mat*sd(obs_fit$sigma)
+	sigma_coef = summary(mod_sigma)
+	sigma_varcomp = varcomp(mod_sigma)
 	
 	write_rds(list(estimates = data.frame(alpha = alpha_mat, A = A_mat, snow = snow_mat,
-																				tau = tau_mat, tao = tao_mat),
-								 alpha = alpha_coef$fixed.effects.estimates, A = A_coef$fixed.effects.estimates,
-								 snow = snow_coef$fixed.effects.estimates,
-								 tau = tau_coef$fixed.effects.estimates, tao = tao_coef$fixed.effects.estimates),
+																				tau = tau_mat, tao = tao_mat, sigma = sigma_mat),
+								 alpha = alpha_coef$fixed.effects.estimates, alpha_v = alpha_varcomp,
+								 A = A_coef$fixed.effects.estimates, A_v = A_varcomp,
+								 snow = snow_coef$fixed.effects.estimates, snow_v = snow_varcomp,
+								 tau = tau_coef$fixed.effects.estimates, tau_v = tau_varcomp,
+								 tao = tao_coef$fixed.effects.estimates, tao_v = tao_varcomp,
+								 sigma = sigma_coef$fixed.effects.estimates, sigma_v = sigma_varcomp),
 						path = paste("./Water_Temperature/Data/iterations/",as.character(i),".rds",sep = ""))
 	
 	list(estimates = data.frame(alpha = alpha_mat, A = A_mat, snow = snow_mat,
-															tau = tau_mat, tao = tao_mat),
-			 alpha = alpha_coef$fixed.effects.estimates, A = A_coef$fixed.effects.estimates,
-			 snow = snow_coef$fixed.effects.estimates,
-			 tau = tau_coef$fixed.effects.estimates, tao = tao_coef$fixed.effects.estimates)
+															tau = tau_mat, tao = tao_mat, sigma = sigma_mat),
+			 alpha = alpha_coef$fixed.effects.estimates, alpha_v = alpha_varcomp,
+			 A = A_coef$fixed.effects.estimates, A_v = A_varcomp,
+			 snow = snow_coef$fixed.effects.estimates, snow_v = snow_varcomp,
+			 tau = tau_coef$fixed.effects.estimates, tau_v = tau_varcomp,
+			 tao = tao_coef$fixed.effects.estimates, tao_v = tao_varcomp,
+			 sigma = sigma_coef$fixed.effects.estimates, sigma_v = sigma_varcomp)
 }
-write_rds(rtrn, "./Water_Temperature/Data/network_4.rds")
+Sys.time()-start_time
+write_rds(rtrn, "./Water_Temperature/Data/network_250.rds")
 stopCluster(cl)
 #-------------------------> END Sequence <-------------------------#
 
-#Visual Diagnostics
-cv.out = CrossValidationSSN(mod_tao)
-par(mfrow = c(1, 2))
-plot(mod_tao$sampinfo$z,
-		 cv.out[, "cv.pred"], pch = 19,
-		 xlab = "Observed Data", ylab = "LOOCV Prediction")
-abline(0, 1)
-plot( na.omit( getSSNdata.frame(network)[, "tao"]),
-			cv.out[, "cv.se"], pch = 19,
-			xlab = "Observed Data", ylab = "LOOCV Prediction SE")
 
-plot(network, "A", lwdLineCol = "afvArea", lwdLineEx = 10, lineCol = "black", pch = 19, xlab = "x-coordinate (m)", ylab = "y-coordinate (m)", asp   =   1)
+#------------------------> Model Checking <------------------------#
 
-#The notable interaction of lake and elevation may be explained by the fact that higher elevations have steeper slopes and fewer lakes and therefore a negative relationship with temperature. This is supported by Lisi:2015.
+alpha_cv = CrossValidationSSN(mod_alpha)
+A_cv = CrossValidationSSN(mod_A)
+snow_cv = CrossValidationSSN(mod_snow)
+tau_cv = CrossValidationSSN(mod_tau)
+tao_cv = CrossValidationSSN(mod_tao)
+sigma_cv = CrossValidationSSN(mod_sigma)
+
+cv = data.frame(obs = c(mod_alpha$sampinfo$z,
+									 mod_A$sampinfo$z,
+									 mod_snow$sampinfo$z,
+									 mod_tau$sampinfo$z,
+									 mod_tao$sampinfo$z,
+									 mod_sigma$sampinfo$z),
+					 cv_pred = c(alpha_cv[,"cv.pred"],
+					 						A_cv[,"cv.pred"],
+					 						snow_cv[,"cv.pred"],
+					 						tau_cv[,"cv.pred"],
+					 						tao_cv[,"cv.pred"],
+					 						sigma_cv[,"cv.pred"]),
+					 model = c(rep("alpha",length(alpha_cv[,"cv.pred"])),
+					 						rep("A",length(A_cv[,"cv.pred"])),
+					 						rep("snow",length(snow_cv[,"cv.pred"])),
+					 						rep("tau",length(tau_cv[,"cv.pred"])),
+					 						rep("tao",length(tao_cv[,"cv.pred"])),
+					 						rep("sigma",length(sigma_cv[,"cv.pred"]))))
+
+cv$labels = factor(x = cv$model, labels = c(
+	expression(italic("A")),
+	expression(alpha),
+	expression(sigma),
+	expression(phi),
+	expression(tau[2]),
+	expression(tau[1])
+	))
+
+p=ggplot(cv, aes(obs,cv_pred)) + geom_point(size = .5) +
+	geom_abline(intercept = 0, slope = 1) +
+	facet_wrap(~labels, scales = "free", labeller = label_parsed) + 
+	ggthemes::theme_tufte() +
+	labs(x = "Coefficient Observations", y = "Coefficient Predictions")
+ggsave(filename = "cross_val.png", plot = p, device = "png", 
+			 path = "./Water_Temperature/images/", width = 6.5, height = 4.5, units = "in", dpi = 500)
+
+#----------------------> END Model Checking <----------------------#
+
 
 
 # Thermal Stress Probability Accumulation Analysis
@@ -273,7 +362,7 @@ samp_dates = function(single=F){
 cl <- makeCluster(7)
 registerDoParallel(cl)
 #Sample an early, mid and late summer migration date and calculate temperatures.
-probs = plyr::dlply(.data = samp_dates(single=F), .variables = "migrate", .fun = function(x){
+probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun = function(x){
 	
 	#----->Data<-----#
 	#SSN Model fits
@@ -286,9 +375,7 @@ probs = plyr::dlply(.data = samp_dates(single=F), .variables = "migrate", .fun =
 										col_names = c("rid","binaryID"), skip = 1, col_types = cols("i","c"))
 	net2=as.data.frame(net2)
 	#Prediction Points
-	preds = getSSNdata.frame(network, Name = "preds"); names(preds)[15] = "year"
-	preds[preds$rid == 1645,"rid"] = 1769
-	preds[preds$rid == 3139,"rid"] = 3284
+	preds = getSSNdata.frame(network, Name = "preds"); names(preds)[4] = "year"
 	
 	#----->Functions<-----#
 	#Determine downstream nodes.
@@ -307,34 +394,39 @@ probs = plyr::dlply(.data = samp_dates(single=F), .variables = "migrate", .fun =
 	}
 	#Caluculate mean daily temperatures based on estimated d
 	temperature = function(df){
-		(df$alpha + df$A*cos(2*pi*df$d/df$n+pi*df$tau)) + cos(2*pi*df$d/(df$n/2)+pi*df$tao)
+		celcius = (df$alpha + df$A*cos(2*pi*df$d/df$n+pi*df$tau)) + #Annual
+			cos(2*pi*df$d/(df$n/2)+pi*df$tao)   						          #Seasonal
+		p19 = pnorm(19,celcius,df$sigma,lower.tail = F)							#Prob. over 19ºC
+		p22 = pnorm(22,celcius,df$sigma,lower.tail = F)							#Prob. over 22ºC
+		data.frame(celcius,p19,p22)
 	}
 	
 	#----->Analysis<-----#
 	plyr::dlply(.data = x, .variables = "start", .fun = function(y){
-		tmp = t(plyr::ldply(fits, function(z){
+		tmp = plyr::ldply(fits, function(z){
 			n = if_else(leap_year(ymd(paste(as.character(preds$year),"01","01",sep="-"))),366,365)
 			est = mutate(z$estimates, d = swim_date(y$start,preds$upDist),n = n)
 			temperature(est)
-		})) %>% data.frame(.,row.names = NULL)
+		})
 		preds %>% group_by(locID) %>% do({
 			if(.$netID==1) net = net1
 			if(.$netID==2) net = net2
 			binary = net[net$rid==.$rid,"binaryID"]
 			#Determine downstream prediction points.
 			dwn_rid = dwnStrm(net, binary)
-			#Probability of >18ºC experience
+			#Probability of >#ºC experience by ...
+			#Site or ...
+			pt = tmp[which(preds$year==.$year & preds$rid==.$rid & preds$upDist==.$upDist),]
+			#Migration route
 			pts = tmp[which(preds$year==.$year & preds$upDist<=.$upDist & preds$rid %in% dwn_rid),]
-			G19_sum = sum(pts>19);G20_sum = sum(pts>20);G21_sum = sum(pts>21);G22_sum = sum(pts>22)
-			G23_sum = sum(pts>23);G24_sum = sum(pts>24); denom = length(pts)*nrow(pts)
-			data.frame(Sum19 = G19_sum, G19 = G19_sum/denom,
-								 Sum20 = G20_sum, G20 = G20_sum/denom,
-								 Sum21 = G21_sum, G21 = G21_sum/denom,
-								 Sum22 = G22_sum, G22 = G22_sum/denom,
-								 Sum23 = G23_sum, G23 = G23_sum/denom,
-								 Sum24 = G24_sum, G24 = G24_sum/denom)
+			#Sum totals and divibles by site and migration route
+			data.frame(
+				sum19 = sum(pts[[1]]>=19), sum22 = sum(pts[[1]]>=22),
+				G19 = mean(pts[[2]]), G22 = mean(pts[[3]]),
+				ptG19 = pt$p19, ptG22 = pt$p22
+			)
 		})
-	}, .parallel = F, .paropts = list(.packages = c('tidyverse','lubridate'),
+	}, .parallel = T, .paropts = list(.packages = c('tidyverse','lubridate'),
 																		.export = c("fits","preds","net1","net2",
 																								"swim_date","temperature",
 																								"samp_dates","dwnStrm")))
@@ -349,50 +441,41 @@ probs = read_rds("./Water_Temperature/Data/probs_flatD.rds")
 lim_summary = function(probs, cols, prefix){
 	plyr::llply(probs, .fun=function(x){
 		tmp = plyr::ldply(x, .fun=function(y){
-			data.frame(locID = y$locID, cum = y[[cols[1]]], probs = y[[cols[2]]], year = preds$year)
+			data.frame(locID = y$locID, cum = y[[cols[1]]], probs = y[[cols[2]]],
+								 probs_s = y[[cols[3]]], year = preds$year)
 		})
-		#Get the mean by year accross days.
+		#Get the mean by year across days.
 		mean_c = tmp %>% group_by(year,locID) %>% 
-			summarise(mean_p = mean(probs), mean_c = round(mean(cum),0))
+			summarise(mean_p = median(probs), mean_c = median(cum), mean_s = median(probs_s))
 		#Get the day with the greatest average value.
-		max_p = tmp %>% group_by(year,start) %>% summarise(mean_p = mean(probs)) %>% 
+		max_p = tmp %>% group_by(year,start) %>% summarise(mean_p = median(probs)) %>% 
 			filter(mean_p == max(mean_p)) %>% rename(start_p = start) %>% 
-			inner_join(.,tmp,by = c("year","start_p"="start")) %>% select(-mean_p, -cum)
-		max_c = tmp %>% group_by(year,start) %>% summarise(mean_c = mean(cum)) %>% 
-			filter(mean_c == max(mean_c))  %>% rename(start_c = start) %>% 
-			inner_join(.,tmp,by = c("year","start_c"="start")) %>% select(-mean_c, -probs)
-		max = left_join(max_p, max_c) 
+			inner_join(.,tmp,by = c("year","start_p"="start")) %>% select(-mean_p, -cum, -probs_s)
+		max_c = tmp %>% group_by(year,start) %>% summarise(mean_c = mean(cum)) %>% group_by(year) %>%  
+			filter(mean_c == max(mean_c)) %>% filter(start == min(start)) %>% rename(start_c = start) %>% 
+			inner_join(.,tmp,by = c("year","start_c"="start")) %>% select(-mean_c, -probs, -probs_s)
+		max = left_join(max_p, max_c)
 		#return summarized data by migration.
-		final = max %>% left_join(., mean_c, by = c("year","locID")) %>% select(3,1,7,8,2,4,5,6)
-		names(final)[c(3:8)] = paste(prefix,names(final)[c(3:8)],sep="_")
+		final = max %>% left_join(., mean_c, by = c("year","locID")) %>% select(3,1,7,8,9,2,4,5,6)
+		names(final)[c(3:9)] = paste(prefix,names(final)[c(3:9)],sep="_")
 		return(final)
 	})
 }
 #Summarize by threshold
-G19 = lim_summary(probs, c(2,3), "G19")
-G20 = lim_summary(probs, c(4,5), "G20")
-G21 = lim_summary(probs, c(6,7), "G21")
-G22 = lim_summary(probs, c(8,9), "G22")
-G23 = lim_summary(probs, c(10,11), "G23")
-G24 = lim_summary(probs, c(12,13), "G24")
+G19 = lim_summary(probs, c(2,4,6), "G19")
+G22 = lim_summary(probs, c(3,5,7), "G22")
 
 #Save shape files
 
 shp_save = function(pred_df, period, yr){
-	#Bind together the thresholds
-	p_riod = pred_df %>% select(-c(1:7)) %>% 
-		left_join(.,G19[[period]]) %>% left_join(.,G20[[period]]) %>%
-		left_join(.,G21[[period]]) %>% left_join(.,G22[[period]]) %>%
-		left_join(.,G23[[period]]) %>% left_join(.,G24[[period]])
-	#Filter out by year
-	p_riod = data.frame(network@predpoints@SSNPoints[[1]]@point.coords) %>% 
-		bind_cols(., p_riod) %>% filter(year == yr)
+	#Bind together the thresholds and Filter out by year.
+	p_riod = pred_df %>% select(-c(1,2,5:9)) %>% 
+		left_join(.,G19[[period]]) %>% left_join(.,G22[[period]]) %>% filter(year == yr)
 	#Make spatial object
-	p_riod = SpatialPointsDataFrame(coords = p_riod[,c("coords.x1","coords.x2")], 
-												 data = p_riod[,c(3:46)], proj4string = network@proj4string)
+	p_riod = SpatialLinesDataFrame(sl = as.SpatialLines(network), data = p_riod, match.ID = "UID")
 	#Write shapefile.
 	lyr = paste(period, as.character(yr), sep = "_")
-	writeOGR(p_riod, dsn = "./Water_Temperature/lsn/risk_probs/", layer = lyr,
+	writeOGR(p_riod, dsn = "~/sfu/River_Network_Temperature_Output/risk_probs/", layer = lyr,
 					 overwrite_layer = T, driver = "ESRI Shapefile")
 }
 
