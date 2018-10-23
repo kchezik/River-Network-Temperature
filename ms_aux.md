@@ -22,7 +22,7 @@
 \begin{figure}[H]
 \centering
 \includegraphics[width=6in]{./Water_Temperature/images/S3_period_year_cum_19.png}
-\caption{The median cummulative number of likely (>50\% probability) thermal exposures above 19 \text{\textdegree}C during migration up the North and South Thompson River watersheds. Values are scaled between 0 (blue) and 1 (red) by the largest value across migratory periods, years and thresholds (*n* = 106). Migratory period estimates projected during early (June), mid (July) and late (August) summer between 2014 and 2017. Points indicate spawning locations of chinook populations in the watersheds and their shape indicates their migration timing through the Albion Test Fishery near the mouth of the Fraser River.} 
+\caption{The median cummulative number of likely (>50\% probability) thermal exposures above 19 \text{\textdegree}C during migration up the North and South Thompson River watersheds. Values are scaled between 0 (blue) and 1 (red) by the largest value across migratory periods, years and thresholds (\textit{n} = 106). Migratory period estimates projected during early (June), mid (July) and late (August) summer between 2014 and 2017. Points indicate spawning locations of chinook populations in the watersheds and their shape indicates their migration timing through the Albion Test Fishery near the mouth of the Fraser River.} 
 \label{fig:3}
 \end{figure}
 
