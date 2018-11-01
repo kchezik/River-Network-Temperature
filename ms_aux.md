@@ -1,4 +1,4 @@
-% Title | Supplementary
+% Impacts of network structure and landscape complexity on the cummulative thermal exposure of migrating salmon | Supplementary
 % K. A. Chezik; J. W. Moore
 
 \begin{figure}[H]
