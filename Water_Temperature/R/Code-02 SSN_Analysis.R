@@ -361,6 +361,7 @@ samp_dates = function(single=F){
 
 cl <- makeCluster(7)
 registerDoParallel(cl)
+start = Sys.time()
 #Sample an early, mid and late summer migration date and calculate temperatures.
 probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun = function(x){
 	
@@ -376,6 +377,7 @@ probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun =
 	net2=as.data.frame(net2)
 	#Prediction Points
 	preds = getSSNdata.frame(network, Name = "preds"); names(preds)[4] = "year"
+	preds = mutate(preds, rowNo = row_number())
 	
 	#----->Functions<-----#
 	#Determine downstream nodes.
@@ -400,6 +402,8 @@ probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun =
 		p22 = pnorm(22,celcius,df$sigma,lower.tail = F)							#Prob. over 22ºC
 		data.frame(celcius,p19,p22)
 	}
+	#Determine initial location of each recuring prediction sequence by mcmc chain.
+	prob_row = seq(1,length(fits)*nrow(preds),by=nrow(preds))-1
 	
 	#----->Analysis<-----#
 	plyr::dlply(.data = x, .variables = "start", .fun = function(y){
@@ -416,14 +420,19 @@ probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun =
 			dwn_rid = dwnStrm(net, binary)
 			#Probability of >#ºC experience by ...
 			#Site or ...
-			pt = tmp[which(preds$year==.$year & preds$rid==.$rid & preds$upDist==.$upDist),]
+			pt = tmp[c(prob_row+.$rowNo),]
 			#Migration route
-			pts = tmp[which(preds$year==.$year & preds$upDist<=.$upDist & preds$rid %in% dwn_rid),]
-			#Sum totals and divibles by site and migration route
+			pts = filter(preds, year == .$year, upDist<=.$upDist, rid %in% dwn_rid) %>% 
+				group_by(rowNo) %>% do({
+					tmp[c(prob_row+.$rowNo),]
+				})
+			#Sum all mean temperature estimates above threshold,
+			#Determine the mean probability of being above threshold during migration,
+			#Calculate the median probability of being above threshold at the migration destination.
 			data.frame(
-				sum19 = sum(pts[[1]]>=19), sum22 = sum(pts[[1]]>=22),
-				G19 = mean(pts[[2]]), G22 = mean(pts[[3]]),
-				ptG19 = pt$p19, ptG22 = pt$p22
+				sum19 = sum(pts$celcius>19), sum22 = sum(pts$celcius>22),
+				G19 = sum(pts$celcius>19)/nrow(pts), G22 = sum(pts$celcius>22)/nrow(pts),
+				ptG19 = median(pt$p19), ptG22 = median(pt$p22)
 			)
 		})
 	}, .parallel = T, .paropts = list(.packages = c('tidyverse','lubridate'),
@@ -431,6 +440,7 @@ probs = plyr::dlply(.data = samp_dates(single=T), .variables = "migrate", .fun =
 																								"swim_date","temperature",
 																								"samp_dates","dwnStrm")))
 })
+Sys.time()-start 
 write_rds(probs, "./Water_Temperature/Data/probs_flatD.rds")
 stopCluster(cl)
 
@@ -447,9 +457,9 @@ lim_summary = function(probs, cols, prefix){
 		#Get the mean by year across days.
 		mean_c = tmp %>% group_by(year,locID) %>% 
 			summarise(mean_p = median(probs), mean_c = median(cum), mean_s = median(probs_s))
-		#Get the day with the greatest average value.
+		#Get the first day with the greatest average value.
 		max_p = tmp %>% group_by(year,start) %>% summarise(mean_p = median(probs)) %>% 
-			filter(mean_p == max(mean_p)) %>% rename(start_p = start) %>% 
+			filter(mean_p == max(mean_p)) %>% filter(start == min(start)) %>% rename(start_p = start) %>% 
 			inner_join(.,tmp,by = c("year","start_p"="start")) %>% select(-mean_p, -cum, -probs_s)
 		max_c = tmp %>% group_by(year,start) %>% summarise(mean_c = mean(cum)) %>% group_by(year) %>%  
 			filter(mean_c == max(mean_c)) %>% filter(start == min(start)) %>% rename(start_c = start) %>% 
@@ -466,7 +476,6 @@ G19 = lim_summary(probs, c(2,4,6), "G19")
 G22 = lim_summary(probs, c(3,5,7), "G22")
 
 #Save shape files
-
 shp_save = function(pred_df, period, yr){
 	#Bind together the thresholds and Filter out by year.
 	p_riod = pred_df %>% select(-c(1,2,5:9)) %>% 
