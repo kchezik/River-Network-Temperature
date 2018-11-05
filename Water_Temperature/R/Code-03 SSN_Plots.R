@@ -273,15 +273,16 @@ c_dat = c_dat %>% group_by(rid) %>% do({
 dat =  c_dat %>% arrange(desc(wtsh),desc(upDist),desc(c19))
 x = dat %>% select(Pop) %>% distinct() %>% .$Pop %>% as.numeric()
 dat$Pop = factor(dat$Pop,levels = levels(dat$Pop)[c(x)])
+dat$migr = factor(dat$migr, levels = c("Early","Mid","Late"))
 
-p1 = ggplot(dat, aes(Pop,c19,color=as.factor(year),shape = wtsh)) +
+p1 = ggplot(dat, aes(Pop,c19,color=as.factor(year),shape = migr)) +
 	geom_point() +
 	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A"))+
 	ggthemes::theme_tufte() +
 	labs(y = expression(paste(italic("n")," >19"*degree*"C")),
 			 title = "Migratory Thermal Exposure",
 			 x = "", color = "Year", shape = "Watershed") + 
-	theme(legend.direction = "horizontal", legend.position = c(.9,1.15),
+	theme(legend.direction = "horizontal", legend.position = c(.8,1.15),
 				legend.text.align = 0, 
 				plot.title = element_text(hjust = 0.5, size = 10,
 																	margin = margin(t = 10, b = 30)),
@@ -295,7 +296,7 @@ p1 = ggplot(dat, aes(Pop,c19,color=as.factor(year),shape = wtsh)) +
 	guides(shape = F,
 				 color = guide_legend(title.position="top", title.hjust = 0.5))
 
-p2 = ggplot(dat, aes(Pop,c22,color=as.factor(year), shape = wtsh)) +
+p2 = ggplot(dat, aes(Pop,c22,color=as.factor(year), shape = migr)) +
 	geom_point() +
 	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A"))+
 	ggthemes::theme_tufte() +
@@ -310,15 +311,16 @@ p2 = ggplot(dat, aes(Pop,c22,color=as.factor(year), shape = wtsh)) +
 dat =  c_dat %>% arrange(desc(wtsh),desc(upDist),desc(s19))
 x = dat %>% select(Pop) %>% distinct() %>% .$Pop %>% as.numeric()
 dat$Pop = factor(dat$Pop,levels = levels(dat$Pop)[c(x)])
+dat$migr = factor(dat$migr, levels = c("Early","Mid","Late"))
 
-p3 = ggplot(dat, aes(Pop,s19,color=as.factor(year),shape = wtsh)) + 
+p3 = ggplot(dat, aes(Pop,s19,color=as.factor(year),shape = migr)) + 
 	geom_point() +
 	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A"))+
 	ggthemes::theme_tufte() +
-	labs(y = expression(paste(italic("y")["s,yr"]," >19"*degree*"C")), 
+	labs(y = expression(paste(italic("P(y")[italic("s,yr")],italic(")")," >19"*degree*"C")), 
 			 title = "Spawn Site Exposure Potential",
-			 x = "", shape = "Watershed") + 
-	theme(legend.direction = "horizontal", legend.position = c(.1,1.15),
+			 x = "", shape = "Migration") + 
+	theme(legend.direction = "horizontal", legend.position = c(.2,1.15),
 				legend.text.align = 0, 
 				plot.title = element_text(hjust = 0.5, size = 10,
 																	margin = margin(t = 10, b = 30)),
@@ -332,11 +334,11 @@ p3 = ggplot(dat, aes(Pop,s19,color=as.factor(year),shape = wtsh)) +
 	guides(shape = guide_legend(title.position="top", title.hjust = 0.5),
 				 color = F)
 
-p4 = ggplot(dat, aes(Pop,s22,color=as.factor(year), shape = wtsh)) + 
+p4 = ggplot(dat, aes(Pop,s22,color=as.factor(year), shape = migr)) + 
 	geom_point() +
 	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A"))+
 	ggthemes::theme_tufte() +
-	labs(y = expression(paste(italic("y")["s,yr"]," >22"*degree*"C")),
+	labs(y = expression(paste(italic("P(y")[italic("s,yr")],italic(")")," >22"*degree*"C")),
 			 x = "Chinook Populations") + 
 	theme(axis.text = element_text(size = 7),
 				axis.title = element_text(size = 9),
@@ -349,4 +351,37 @@ pf = gridExtra::grid.arrange(p1, p2, p3, p4,
 														 layout_matrix = matrix(data = c(1,2,3,4), nrow = 2, ncol = 2))
 ggsave(filename = "./Water_Temperature/images/chinook.png",
 			 plot = pf, device = "png", width = 7.5, height = 5,
+			 units = "in", dpi = 500)
+
+	#Reorder factors
+dat$migr = factor(dat$migr, levels = c("Early","Mid","Late"))
+#Plots
+p1 = ggplot(dat, aes(migr, p19, color = as.factor(year))) + geom_jitter(width = .1, height = 0) +
+	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A")) +
+	labs(y = expression(paste(italic("P(y")[italic("s,yr")],italic(")")," >19"*degree*"C"))) +
+	ggthemes::theme_tufte()+
+	theme(legend.direction = "horizontal", legend.position = "top",
+				legend.title = element_blank(),
+				axis.text = element_text(size = 7),
+				axis.text.x = element_blank(),
+				axis.title.x = element_blank()) +
+	guides(color = guide_legend(title.position="top")) +
+	facet_wrap(~wtsh)
+
+p2 = ggplot(dat, aes(migr, p22, color = as.factor(year))) + geom_jitter(width = .1, height = 0) +
+	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A")) +
+	labs(y = expression(paste(italic("P(y")[italic("s,yr")],italic(")")," >22"*degree*"C")), 
+			 x = "Migration Period") +
+	ggthemes::theme_tufte()+
+	theme(legend.position = "none",
+				legend.title = element_blank(),
+				axis.text = element_text(size = 7),
+				axis.title = element_text(size = 9),
+				strip.text = element_blank()) +
+	facet_wrap(~wtsh)
+
+pf = gridExtra::grid.arrange(p1, p2,
+														 layout_matrix = matrix(data = c(1,2), nrow = 2, ncol = 1))
+ggsave(filename = "./Water_Temperature/images/chinook_migr.png",
+			 plot = pf, device = "png", width = 3.75, height = 5,
 			 units = "in", dpi = 500)
