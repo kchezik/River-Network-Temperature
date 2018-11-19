@@ -108,7 +108,7 @@ p5 = snow %>% filter(FactorLevel %in% c("scl_air_mn","scl_ele")) %>%
 	xlim(-1.25,-0.5) +
 	ggthemes::theme_tufte() +
 	labs(x = "", fill = "", 
-			 title = expression(paste("Precipitation Effect (",phi,")"))) +
+			 title = expression(paste("Seasonal Hysteresis (",phi,")"))) +
 	theme(legend.direction = "horizontal", legend.position = "top",
 				plot.title = element_text(hjust = 0.5, size = 10),
 				legend.text.align = 0,
@@ -280,7 +280,7 @@ p1 = ggplot(dat, aes(Pop,c19,color=as.factor(year),shape = migr)) +
 	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A"))+
 	ggthemes::theme_tufte() +
 	labs(y = expression(paste(italic("n")," >19"*degree*"C")),
-			 title = "Migratory Thermal Exposure",
+			 title = "Cumulative Migratory Thermal Exposure",
 			 x = "", color = "Year", shape = "Watershed") + 
 	theme(legend.direction = "horizontal", legend.position = c(.8,1.15),
 				legend.text.align = 0, 
@@ -318,7 +318,7 @@ p3 = ggplot(dat, aes(Pop,s19,color=as.factor(year),shape = migr)) +
 	scale_color_manual(values = c("#F26419","#F6AE2D","#86BBD8","#33658A"))+
 	ggthemes::theme_tufte() +
 	labs(y = expression(paste(italic("P(y")[italic("s,yr")],italic(")")," >19"*degree*"C")), 
-			 title = "Spawn Site Exposure Potential",
+			 title = "Spawn Site | Thermal Exposure Probability",
 			 x = "", shape = "Migration") + 
 	theme(legend.direction = "horizontal", legend.position = c(.2,1.15),
 				legend.text.align = 0, 
