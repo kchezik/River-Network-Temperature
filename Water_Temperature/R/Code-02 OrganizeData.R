@@ -89,18 +89,24 @@ label = data.frame(newID = c(1,61,72,100),
 									 					"Shuswap River (ST)"))
 
 #Determine which sites and years should be omited from SSN analysis.
-p = rtrn %>% filter(newID %in% c(1,61,72,100)) %>% 
+p = rtrn %>% filter(newID %in% c(61)) %>%  #filter(newID %in% c(1,61,72,100)) %>% 
 	left_join(., label) %>%
-	ggplot(., aes(day, temperature, group = year_no)) + geom_point(size = 0.5) + 
+	ggplot(., aes(day, temperature, group = year_no)) + #geom_point(size = 0.1, colour = "#4b82af") + 
 	#geom_point(aes(day, Q5), color = "red") +
 	geom_ribbon(aes(x = day, ymin = Q2.5, ymax = Q97), fill = "#F26419") + 
 	geom_line(aes(x=day,y=sigma),color="#F6AE2D", linetype = 2) +
-	facet_wrap(~label)+
+	#facet_wrap(~label)+
 	ggthemes::theme_tufte() +
 	scale_x_date(date_breaks = "6 month", date_labels = "%y-%m") + 
 	labs(x = "Year-Month", y = expression("Temperature ("*degree*"C)"))+
-	theme(#strip.text = element_blank(),
-				axis.text = element_text(size = 8))
+	theme(strip.text = element_text(colour = "white"),
+				axis.text = element_text(size = 8, colour = "white"),
+				text = element_text(colour = "white"),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
+ggsave(filename = "~/sfuvault/Thesis/Defense_Talk/temporal_fit_model.png", plot = p,
+			 device = "png", width = 7.5, height = 3.5, units = "in", dpi = 500, bg = "transparent")
 ggsave(filename = "./Water_Temperature/images/temporal_fit.png", plot = p,
 			 device = "png", width = 7.5, height = 3.5, units = "in", dpi = 500)
 

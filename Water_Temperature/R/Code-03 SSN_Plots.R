@@ -10,27 +10,30 @@ alpha = plyr::ldply(fits, function(x){
 
 p1 = alpha %>% filter(FactorLevel %in% c("scl_air_mn","scl_air_A","scl_ele")) %>% 
 	ggplot(aes(Estimate, group=FactorLevel, fill=FactorLevel)) + 
-	geom_density(color = "white", adjust = 1.5) +
+	geom_density(color = "transparent", adjust = 1.5) +
 	scale_fill_manual(values = c("#F26419","#F6AE2D","#45062E"),
 										labels = c("Air Amplitude","Air Mean","Elevation")) +
 	ggthemes::theme_tufte() +
 	labs(x = "", fill = "", 
 			 title = expression(paste("Mean Water Temperature (",alpha,")"))) + 
 	theme(legend.direction = "horizontal", legend.position = "top",
-				plot.title = element_text(hjust = 0.5, size = 10),
+				plot.title = element_text(hjust = 0.5, size = 10, colour = "white"),
 				legend.text.align = 0,
 				axis.text.y = element_blank(),
 				axis.ticks.y = element_blank(),
 				axis.title.y = element_blank(),
-				axis.text.x = element_text(size = 6),
-				axis.title.x = element_text(size = 8),
-				legend.text = element_text(size = 6),
-				legend.key.size = unit(2,'mm'))
+				axis.text.x = element_text(size = 6, colour = "white"),
+				axis.title.x = element_text(size = 8, colour = "white"),
+				legend.text = element_text(size = 6, colour = "white"),
+				legend.key.size = unit(2,'mm'),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
 
 p2 = alpha %>% filter(FactorLevel %in% c("lgt_firecum","lgt_lake",
 																	 "lgt_lake:scl_ele")) %>% 
 	ggplot(aes(Estimate, group=FactorLevel, fill=FactorLevel)) + 
-	geom_density(color = "white", adjust = 1.5) +
+	geom_density(color = "transparent", adjust = 1.5) +
 	scale_fill_manual(values = c("#F6AE2D","#33658A", "#45062E"),
 										labels = c("WildFire","Lakes","Lakes:Elevation")) +
 	ggthemes::theme_tufte() +
@@ -41,10 +44,13 @@ p2 = alpha %>% filter(FactorLevel %in% c("lgt_firecum","lgt_lake",
 				axis.text.y = element_blank(),
 				axis.ticks.y = element_blank(),
 				axis.title.y = element_blank(),
-				axis.text.x = element_text(size = 6),
-				axis.title.x = element_text(size = 8),
-				legend.text = element_text(size = 6),
-				legend.key.size = unit(2,'mm'))
+				axis.text.x = element_text(size = 6, colour = "white"),
+				axis.title.x = element_text(size = 8, colour = "white"),
+				legend.text = element_text(size = 6, colour = "white"),
+				legend.key.size = unit(2,'mm'),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
 
 #pf = gridExtra::grid.arrange(p1, p2, layout_matrix = matrix(data = c(1,2), nrow = 2, ncol = 1))
 #ggsave(filename = "SSN_alpha.png", path = "~/sfuvault/River-Network-Temperature/Water_Temperature/images/", plot = pf, width = 6.5, height = 3.5, units = "in", device = "png")
@@ -57,7 +63,7 @@ A = plyr::ldply(fits, function(x){
 
 p3 = A %>% filter(FactorLevel %in% c("scl_air_mn","scl_air_A","scl_ca")) %>% 
 	ggplot(aes(Estimate, group=FactorLevel, fill=FactorLevel)) + 
-	geom_density(color = "white", adjust = 1.5) +
+	geom_density(color = "transparent", adjust = 1.5) +
 	scale_fill_manual(values = c("#F26419","#F6AE2D","#9ECE9A"),
 										labels = c("Air Amplitude","Air Mean",
 															 expression(paste("Catchment Area (H"[2],"O)")))) +
@@ -66,19 +72,22 @@ p3 = A %>% filter(FactorLevel %in% c("scl_air_mn","scl_air_A","scl_ca")) %>%
 	labs(x = "", fill = "", 
 			 title = expression(paste("Water Temperature Amplitude (",italic("A"),")"))) + 
 	theme(legend.direction = "horizontal", legend.position = "top",
-				plot.title = element_text(hjust = 0.5, size = 10),
+				plot.title = element_text(hjust = 0.5, size = 10, colour = "white"),
 				legend.text.align = 0,
 				axis.text.y = element_blank(),
 				axis.ticks.y = element_blank(),
 				axis.title.y = element_blank(),
-				axis.text.x = element_text(size = 6),
-				axis.title.x = element_text(size = 8),
-				legend.text = element_text(size = 6),
-				legend.key.size = unit(2,'mm'))
+				axis.text.x = element_text(size = 6, colour = "white"),
+				axis.title.x = element_text(size = 8, colour = "white"),
+				legend.text = element_text(size = 6, colour = "white"),
+				legend.key.size = unit(2,'mm'),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
 
 p4 = A %>% filter(FactorLevel %in% c("lgt_glacier","lgt_lake")) %>% 
 	ggplot(aes(Estimate, group=FactorLevel, fill=FactorLevel)) + 
-	geom_density(color = "white", adjust = 1.5) +
+	geom_density(color = "transparent", adjust = 1.5) +
 	scale_fill_manual(values = c("#86BBD8","#33658A"),
 										labels = c("Glacier","Lakes")) +
 	ggthemes::theme_tufte() +
@@ -90,10 +99,13 @@ p4 = A %>% filter(FactorLevel %in% c("lgt_glacier","lgt_lake")) %>%
 				axis.text.y = element_blank(),
 				axis.ticks.y = element_blank(),
 				axis.title.y = element_blank(),
-				axis.text.x = element_text(size = 6),
-				axis.title.x = element_text(size = 8),
-				legend.text = element_text(size = 6),
-				legend.key.size = unit(2,'mm'))
+				axis.text.x = element_text(size = 6, colour = "white"),
+				axis.title.x = element_text(size = 8, colour = "white"),
+				legend.text = element_text(size = 6, colour = "white"),
+				legend.key.size = unit(2,'mm'),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
 
 #Snow
 snow = plyr::ldply(fits, function(x){
@@ -102,7 +114,7 @@ snow = plyr::ldply(fits, function(x){
 
 p5 = snow %>% filter(FactorLevel %in% c("scl_air_mn","scl_ele")) %>% 
 	ggplot(aes(Estimate, group=FactorLevel, fill=FactorLevel)) + 
-	geom_density(color = "white", adjust = 1.5) +
+	geom_density(color = "transparent", adjust = 1.5) +
 	scale_fill_manual(values = c("#F6AE2D","#45062E"),
 										labels = c("Air Mean","Elevation")) +
 	xlim(-1.25,-0.5) +
@@ -110,20 +122,23 @@ p5 = snow %>% filter(FactorLevel %in% c("scl_air_mn","scl_ele")) %>%
 	labs(x = "", fill = "", 
 			 title = expression(paste("Seasonal Hysteresis (",phi,")"))) +
 	theme(legend.direction = "horizontal", legend.position = "top",
-				plot.title = element_text(hjust = 0.5, size = 10),
+				plot.title = element_text(hjust = 0.5, size = 10, colour = "white"),
 				legend.text.align = 0,
 				axis.text.y = element_blank(),
 				axis.ticks.y = element_blank(),
 				axis.title.y = element_blank(),
-				axis.text.x = element_text(size = 6),
-				axis.title.x = element_text(size = 8),
-				legend.text = element_text(size = 6),
-				legend.key.size = unit(2,'mm'))
+				axis.text.x = element_text(size = 6, colour = "white"),
+				axis.title.x = element_text(size = 8, colour = "white"),
+				legend.text = element_text(size = 6, colour = "white"),
+				legend.key.size = unit(2,'mm'),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
 	
 
 p6 = snow %>% filter(FactorLevel %in% c("lgt_glacier")) %>% 
 	ggplot(aes(Estimate, group=FactorLevel, fill=FactorLevel)) + 
-	geom_density(color = "white", adjust = 1.5) +
+	geom_density(color = "transparent", adjust = 1.5) +
 	scale_fill_manual(values = c("#86BBD8"),
 										labels = c("Glacier")) +
 	ggthemes::theme_tufte() +
@@ -135,10 +150,13 @@ p6 = snow %>% filter(FactorLevel %in% c("lgt_glacier")) %>%
 				axis.text.y = element_blank(),
 				axis.ticks.y = element_blank(),
 				axis.title.y = element_blank(),
-				axis.text.x = element_text(size = 6),
-				axis.title.x = element_text(size = 8),
-				legend.text = element_text(size = 6),
-				legend.key.size = unit(2,'mm'))
+				axis.text.x = element_text(size = 6, colour = "white"),
+				axis.title.x = element_text(size = 8, colour = "white"),
+				legend.text = element_text(size = 6, colour = "white"),
+				legend.key.size = unit(2,'mm'),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA))
 
 #pf = gridExtra::grid.arrange(p1, p2, p3, p4, layout_matrix = matrix(data = c(1,2,3,4),
 #																																		nrow = 2, ncol = 2))
@@ -146,6 +164,7 @@ p6 = snow %>% filter(FactorLevel %in% c("lgt_glacier")) %>%
 pf = gridExtra::grid.arrange(p1, p2, p3, p4, p5, p6,
 														 layout_matrix = matrix(data = c(1,2,3,4,5,6),
 																																		nrow = 2, ncol = 3))
+ggsave(filename = "SSN.png", path = "~/sfuvault/Thesis/Defense_Talk/", plot = pf, width = 6.5, height = 3.5, units = "in", device = "png", bg = "transparent")
 ggsave(filename = "SSN.png", path = "~/sfuvault/River-Network-Temperature/Water_Temperature/images/", plot = pf, width = 6.5, height = 3.5, units = "in", device = "png")
 
 #Remaining variable estimates
@@ -282,19 +301,23 @@ p1 = ggplot(dat, aes(Pop,c19,color=as.factor(year),shape = migr)) +
 	labs(y = expression(paste(italic("n")," >19"*degree*"C")),
 			 title = "Cumulative Migratory Thermal Exposure",
 			 x = "", color = "Year", shape = "Watershed") + 
-	theme(legend.direction = "horizontal", legend.position = c(.8,1.15),
+	theme(legend.direction = "horizontal", legend.position = "top",
 				legend.text.align = 0, 
 				plot.title = element_text(hjust = 0.5, size = 10,
-																	margin = margin(t = 10, b = 30)),
-				axis.text = element_text(size = 7),
-				axis.title = element_text(size = 9),
-				legend.text = element_text(size = 7),
-				legend.title = element_text(size = 8),
+																	margin = margin(t = 5, b = 5), colour = "white"),
+				axis.text = element_text(size = 7, colour = "white"),
+				axis.title = element_text(size = 9, colour = "white"),
+				legend.text = element_text(size = 7, colour = "white"),
+				legend.title = element_text(size = 8, colour = "white"),
 				legend.key.size = unit(2,'mm'),
-				axis.text.x = element_blank(),
-				plot.margin=unit(c(.1,.1,.1,.3),"cm"))+
-	guides(shape = F,
-				 color = guide_legend(title.position="top", title.hjust = 0.5))
+				#axis.text.x = element_blank(),
+				axis.text.x = element_text(angle = 35, vjust = .6),
+				plot.margin=unit(c(.1,.1,.1,.3),"cm"),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA)) +
+	guides(color = guide_legend(title.position="top", title.hjust = 0.5),
+				 shape = guide_legend(title.position="top", title.hjust = 0.5))
 
 p2 = ggplot(dat, aes(Pop,c22,color=as.factor(year), shape = migr)) +
 	geom_point() +
@@ -320,19 +343,24 @@ p3 = ggplot(dat, aes(Pop,s19,color=as.factor(year),shape = migr)) +
 	labs(y = expression(paste(italic("P(y")[italic("s,yr")],italic(")")," >19"*degree*"C")), 
 			 title = "Spawn Site | Thermal Exposure Probability",
 			 x = "", shape = "Migration") + 
-	theme(legend.direction = "horizontal", legend.position = c(.2,1.15),
-				legend.text.align = 0, 
+	theme(legend.position = "none",
+				#legend.direction = "horizontal", legend.position = c(.2,1.15),
+				#legend.text.align = 0, 
 				plot.title = element_text(hjust = 0.5, size = 10,
-																	margin = margin(t = 10, b = 30)),
-				axis.text = element_text(size = 7),
-				axis.title = element_text(size = 9),
-				legend.text = element_text(size = 7),
-				legend.title = element_text(size = 8),
+																	margin = margin(t = 5, b = 5), colour = "white"),
+				axis.text = element_text(size = 7, colour = "white"),
+				axis.title = element_text(size = 9, colour = "white"),
+				legend.text = element_text(size = 7, colour = "white"),
+				legend.title = element_text(size = 8, colour = "white"),
 				legend.key.size = unit(2,'mm'),
-				axis.text.x = element_blank(),
-				plot.margin=unit(c(.1,.1,.1,.3),"cm"))+
-	guides(shape = guide_legend(title.position="top", title.hjust = 0.5),
-				 color = F)
+				#axis.text.x = element_blank(),
+				axis.text.x = element_text(angle = 35, vjust = .6),
+				axis.ticks = element_line(colour = "white"),
+				panel.background = element_rect(fill = "transparent", colour = NA),
+				plot.background = element_rect(fill = "transparent", colour = NA),
+				plot.margin=unit(c(.1,.1,.1,.3),"cm"))#+
+	#guides(shape = guide_legend(title.position="top", title.hjust = 0.5),
+	#			 color = F, shape = F)
 
 p4 = ggplot(dat, aes(Pop,s22,color=as.factor(year), shape = migr)) + 
 	geom_point() +
@@ -346,6 +374,11 @@ p4 = ggplot(dat, aes(Pop,s22,color=as.factor(year), shape = migr)) +
 				plot.margin=unit(c(.1,.1,.3,.3),"cm"))+
 	guides(shape = F, color=F)
 
+pf = gridExtra::grid.arrange(p1, p3, 
+														 layout_matrix = matrix(data = c(1,2), nrow = 2, ncol = 1))
+ggsave(filename = "~/sfuvault/Thesis/Defense_Talk/chinook.png",
+			 plot = pf, device = "png", width = 3.75, height = 5.5, bg = "transparent",
+			 units = "in", dpi = 500)
 
 pf = gridExtra::grid.arrange(p1, p2, p3, p4, 
 														 layout_matrix = matrix(data = c(1,2,3,4), nrow = 2, ncol = 2))
